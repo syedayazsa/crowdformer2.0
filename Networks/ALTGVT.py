@@ -24,14 +24,21 @@ class Regression(nn.Module):
             nn.BatchNorm2d(256),
             nn.ReLU(inplace=True)
         )
-
+        
         self.v2 = nn.Sequential(
+            # nn.Upsample(scale_factor=8, mode='bilinear', align_corners=True),
+            nn.Conv2d(256, 256, 3, padding=1, dilation=1),
+            nn.BatchNorm2d(256),
+            nn.ReLU(inplace=True)
+        )
+
+        self.v3 = nn.Sequential(
             nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True),
             nn.Conv2d(512, 256, 3, padding=1, dilation=1),
             nn.BatchNorm2d(256),
             nn.ReLU(inplace=True)
         )
-        self.v3 = nn.Sequential(
+        self.v4 = nn.Sequential(
             nn.Upsample(scale_factor=4, mode='bilinear', align_corners=True),
             nn.Conv2d(1024, 256, 3, padding=1, dilation=1),
             nn.BatchNorm2d(256),
@@ -43,16 +50,21 @@ class Regression(nn.Module):
             nn.ReLU(inplace=True)
         )
         self.stage2 = nn.Sequential(
-            nn.Conv2d(256, 128, 3, padding=2, dilation=2),
+            nn.Conv2d(256, 128, 3, padding=1, dilation=1),
             nn.BatchNorm2d(128),
             nn.ReLU(inplace=True)
         )
         self.stage3 = nn.Sequential(
-            nn.Conv2d(256, 128, 3, padding=3, dilation=3),
+            nn.Conv2d(256, 128, 3, padding=2, dilation=2),
             nn.BatchNorm2d(128),
             nn.ReLU(inplace=True)
         )
         self.stage4 = nn.Sequential(
+            nn.Conv2d(256, 128, 3, padding=3, dilation=3),
+            nn.BatchNorm2d(128),
+            nn.ReLU(inplace=True)
+        )
+        self.stage5 = nn.Sequential(
             nn.Conv2d(256, 384, 1),
             nn.BatchNorm2d(384),
             nn.ReLU(inplace=True)
@@ -67,16 +79,18 @@ class Regression(nn.Module):
 
         self.init_param()
 
-    def forward(self, x1, x2, x3):
+    def forward(self, x1, x2, x3, x4):
         x1 = self.v1(x1)
         x2 = self.v2(x2)
         x3 = self.v3(x3)
-        x = x1 + x2 + x3
+        x4 = self.v3(x4)
+        x = x1 + x2 + x3 + x4
         y1 = self.stage1(x)
         y2 = self.stage2(x)
         y3 = self.stage3(x)
         y4 = self.stage4(x)
-        y = torch.cat((y1,y2,y3), dim=1) + y4
+        y5 = self.stage5(x)
+        y = torch.cat((y1,y2,y3,y4), dim=1) + y5
         y = self.res(y)
         return y
 
@@ -473,7 +487,7 @@ class CPVTV2(PyramidVisionTransformer):
 
     def forward(self, x):
         x = self.forward_features(x)
-        mu = self.regression(x[1], x[2], x[3])
+        mu = self.regression(x[0], x[1], x[2], x[3])
         B, C, H, W = mu.size()
         mu_sum = mu.view([B, -1]).sum(1).unsqueeze(1).unsqueeze(2).unsqueeze(3)
         mu_normed = mu / (mu_sum + 1e-6)
