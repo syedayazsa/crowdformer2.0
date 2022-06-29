@@ -19,27 +19,26 @@ class Regression(nn.Module):
         super(Regression, self).__init__()
 
         self.v1 = nn.Sequential(
-            # nn.Upsample(scale_factor=8, mode='bilinear', align_corners=True),
-            nn.Conv2d(256, 256, 3, padding=1, dilation=1),
+            nn.Conv2d(128, 256, 3, padding=1, dilation=1),
             nn.BatchNorm2d(256),
             nn.ReLU(inplace=True)
         )
         
         self.v2 = nn.Sequential(
-            # nn.Upsample(scale_factor=8, mode='bilinear', align_corners=True),
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True),
             nn.Conv2d(256, 256, 3, padding=1, dilation=1),
             nn.BatchNorm2d(256),
             nn.ReLU(inplace=True)
         )
 
         self.v3 = nn.Sequential(
-            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True),
+            nn.Upsample(scale_factor=4, mode='bilinear', align_corners=True),
             nn.Conv2d(512, 256, 3, padding=1, dilation=1),
             nn.BatchNorm2d(256),
             nn.ReLU(inplace=True)
         )
         self.v4 = nn.Sequential(
-            nn.Upsample(scale_factor=4, mode='bilinear', align_corners=True),
+            nn.Upsample(scale_factor=8, mode='bilinear', align_corners=True),
             nn.Conv2d(1024, 256, 3, padding=1, dilation=1),
             nn.BatchNorm2d(256),
             nn.ReLU(inplace=True)
@@ -65,11 +64,14 @@ class Regression(nn.Module):
             nn.ReLU(inplace=True)
         )
         self.stage5 = nn.Sequential(
-            nn.Conv2d(256, 384, 1),
-            nn.BatchNorm2d(384),
+            nn.Conv2d(256, 512, 1),
+            nn.BatchNorm2d(512),
             nn.ReLU(inplace=True)
         )
         self.res = nn.Sequential(
+            nn.Conv2d(512, 384, 3, padding=1, dilation=1),
+            nn.BatchNorm2d(384),
+            nn.ReLU(inplace=True),
             nn.Conv2d(384, 64, 3, padding=1, dilation=1),
             nn.BatchNorm2d(64),
             nn.ReLU(inplace=True),
@@ -80,17 +82,44 @@ class Regression(nn.Module):
         self.init_param()
 
     def forward(self, x1, x2, x3, x4):
+
+        print()
+        print()
+        print()
         x1 = self.v1(x1)
+        print("X1 Self: ", x1.shape)
         x2 = self.v2(x2)
+        print("X2 Self: ", x2.shape)
         x3 = self.v3(x3)
-        x4 = self.v3(x4)
+        print("X3 Self: ", x3.shape)
+        x4 = self.v4(x4)
+        print("X4 Self: ", x4.shape)
+        
+
         x = x1 + x2 + x3 + x4
+        print("X: ", x.shape)
+
         y1 = self.stage1(x)
         y2 = self.stage2(x)
         y3 = self.stage3(x)
         y4 = self.stage4(x)
         y5 = self.stage5(x)
-        y = torch.cat((y1,y2,y3,y4), dim=1) + y5
+        print("Y1: ", y1.shape)
+        print("Y2: ", y2.shape)
+        print("Y3: ", y3.shape)
+        print("Y4: ", y4.shape)
+        print("Y5: ", y5.shape)
+        print()
+        print()
+        print()
+
+        y = torch.cat((y1,y2,y3,y4), dim=1)
+        print('Y: ', y.shape)
+        print()
+        print()
+        print()
+        y += y5
+
         y = self.res(y)
         return y
 
